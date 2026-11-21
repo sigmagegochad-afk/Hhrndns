@@ -1,4 +1,4 @@
--- Ultra Power Tycoon | by qn1xT v29
+-- Ultra Power Tycoon | by qn1xT v31
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
@@ -74,7 +74,7 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- ОСНОВНОЙ GUI (без статус-бара)
+-- ОСНОВНОЙ GUI
 -- ============================================================
 local SG = Instance.new("ScreenGui")
 SG.Name = "UPT_GUI"; SG.ResetOnSpawn = false; SG.IgnoreGuiInset = true
@@ -144,7 +144,7 @@ MB.MouseButton1Click:Connect(function()
     MB.Text = collapsed and "+" or "−"
 end)
 
--- Вкладки (без статус-бара, сразу сверху)
+-- Вкладки (без статус-бара)
 local tabsFrame = Instance.new("Frame")
 tabsFrame.Size = UDim2.new(1, -20, 0, 36); tabsFrame.Position = UDim2.new(0, 10, 0, 8)
 tabsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30); tabsFrame.BackgroundTransparency = 0.2
@@ -324,88 +324,71 @@ btn(P_MAIN, "🔓 Лазерные двери: ВЫКЛ", Color3.fromRGB(180,50,
     lConn = workspace.DescendantAdded:Connect(kill)
 end)
 
--- === ПОЛЁТ (мобильный) ===
-local fBV, fBG, fConn
-local flyGui, flyUpBtn, flyDownBtn
-local flySpeed = 60
-inp(P_MAIN, "✈ Скорость полёта", 60, function(n) flySpeed = n end)
+-- === MORE SLOTS (кнопка запуска) ===
+btn(P_MAIN, "🎒 Расширить слоты", Color3.fromRGB(80,120,200), function(b)
+    local ok, err = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ltseverydayyou/uuuuuuu/refs/heads/main/mobileBACKPACK.lua"))()
+    end)
+    if ok then
+        b.Text = "🎒 Слоты расширены ✓"
+        b.BackgroundColor3 = Color3.fromRGB(40,180,80)
+        task.wait(2)
+        b.Text = "🎒 Расширить слоты"
+        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
+    else
+        b.Text = "🎒 Ошибка, см. консоль"
+        b.BackgroundColor3 = Color3.fromRGB(180,50,50)
+        warn("[UPT] More slots loadstring failed: " .. tostring(err))
+        task.wait(2)
+        b.Text = "🎒 Расширить слоты"
+        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
+    end
+end)
+
+-- === ПОЛЁТ (как в Infinity Yield) ===
+local flyConn, flyBV, flyBG, flyGui
+local flySpeed = 80
+inp(P_MAIN, "✈ Скорость полёта", 80, function(n) flySpeed = n end)
 btn(P_MAIN, "✈ Полёт: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
-    if fConn then
-        fConn:Disconnect(); fConn=nil
-        if fBV then fBV:Destroy() end
-        if fBG then fBG:Destroy() end
+    if flyConn then
+        flyConn:Disconnect(); flyConn=nil
+        if flyBV then flyBV:Destroy() end
+        if flyBG then flyBG:Destroy() end
         if flyGui then flyGui:Destroy(); flyGui = nil end
         b.Text="✈ Полёт: ВЫКЛ"; b.BackgroundColor3=Color3.fromRGB(180,50,50); return
     end
     b.Text="✈ Полёт: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(40,160,80)
+
     local hrp = getHRP()
-    fBV = Instance.new("BodyVelocity", hrp); fBV.MaxForce = Vector3.new(1e5,1e5,1e5); fBV.Velocity = Vector3.zero
-    fBG = Instance.new("BodyGyro", hrp); fBG.MaxTorque = Vector3.new(1e5,1e5,1e5); fBG.P = 1000; fBG.CFrame = hrp.CFrame
+    flyBV = Instance.new("BodyVelocity", hrp)
+    flyBV.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    flyBV.Velocity = Vector3.zero
+    flyBG = Instance.new("BodyGyro", hrp)
+    flyBG.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+    flyBG.P = 1000
+    flyBG.CFrame = hrp.CFrame
 
-    flyGui = Instance.new("ScreenGui")
-    flyGui.Name = "UPT_Fly"; flyGui.ResetOnSpawn = false
-    flyGui.Parent = player:WaitForChild("PlayerGui")
-    flyUpBtn = Instance.new("TextButton")
-    flyUpBtn.Size = UDim2.new(0, 60, 0, 60); flyUpBtn.Position = UDim2.new(1, -80, 1, -160)
-    flyUpBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 200); flyUpBtn.Text = "▲"
-    flyUpBtn.TextColor3 = Color3.new(1,1,1); flyUpBtn.TextScaled = true
-    flyUpBtn.Font = Enum.Font.GothamBold; flyUpBtn.Parent = flyGui
-    Instance.new("UICorner", flyUpBtn).CornerRadius = UDim.new(1, 0)
-    flyDownBtn = Instance.new("TextButton")
-    flyDownBtn.Size = UDim2.new(0, 60, 0, 60); flyDownBtn.Position = UDim2.new(1, -80, 1, -90)
-    flyDownBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 200); flyDownBtn.Text = "▼"
-    flyDownBtn.TextColor3 = Color3.new(1,1,1); flyDownBtn.TextScaled = true
-    flyDownBtn.Font = Enum.Font.GothamBold; flyDownBtn.Parent = flyGui
-    Instance.new("UICorner", flyDownBtn).CornerRadius = UDim.new(1, 0)
-
-    local upHeld, downHeld = false, false
-    flyUpBtn.MouseButton1Down:Connect(function() upHeld = true end)
-    flyUpBtn.MouseButton1Up:Connect(function() upHeld = false end)
-    flyUpBtn.MouseLeave:Connect(function() upHeld = false end)
-    flyDownBtn.MouseButton1Down:Connect(function() downHeld = true end)
-    flyDownBtn.MouseButton1Up:Connect(function() downHeld = false end)
-    flyDownBtn.MouseLeave:Connect(function() downHeld = false end)
-
-    fConn = RS.RenderStepped:Connect(function()
-        if not fBV or not fBG then return end
-        local cam = workspace.CurrentCamera.CFrame
+    flyConn = RS.RenderStepped:Connect(function()
+        if not flyBV or not flyBG then return end
+        local cam = workspace.CurrentCamera
         local dir = Vector3.zero
-        if UIS:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
-        if upHeld then dir += Vector3.new(0, 1, 0) end
-        if downHeld then dir -= Vector3.new(0, 1, 0) end
-        fBV.Velocity = dir * flySpeed
+        if UIS:IsKeyDown(Enum.KeyCode.W) or UIS:IsKeyDown(Enum.KeyCode.Up) then dir += cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) or UIS:IsKeyDown(Enum.KeyCode.Down) then dir -= cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) or UIS:IsKeyDown(Enum.KeyCode.Left) then dir -= cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) or UIS:IsKeyDown(Enum.KeyCode.Right) then dir += cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
+
+        if dir.Magnitude > 0 then
+            flyBV.Velocity = dir.Unit * flySpeed
+            flyBG.CFrame = CFrame.new(hrp.Position, hrp.Position + dir)
+        else
+            flyBV.Velocity = Vector3.zero
+        end
     end)
 end)
 
-inp(P_MAIN, "🏃 Скорость", 16, function(n) getHum().WalkSpeed = n end)
-inp(P_MAIN, "🦘 Прыжок", 50, function(n) local h=getHum(); h.UseJumpPower=true; h.JumpPower=n end)
-
-local fbOn = false
-btn(P_MAIN, "💡 Яркость: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
-    fbOn = not fbOn
-    b.Text="💡 Яркость: "..(fbOn and "ВКЛ" or "ВЫКЛ")
-    b.BackgroundColor3 = fbOn and Color3.fromRGB(40,160,80) or Color3.fromRGB(180,50,50)
-    Lighting.Brightness = fbOn and 3 or 1; Lighting.ClockTime = fbOn and 12 or 14; Lighting.GlobalShadows = not fbOn
-end)
-
-local npConn
-btn(P_MAIN, "👻 Noclip: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
-    if npConn then npConn:Disconnect(); npConn=nil
-        b.Text="👻 Noclip: ВЫКЛ"; b.BackgroundColor3=Color3.fromRGB(180,50,50); return end
-    b.Text="👻 Noclip: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(40,160,80)
-    npConn = RS.Stepped:Connect(function()
-        for _,p in pairs(getChar():GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end
-    end)
-end)
-
-btn(P_MAIN, "🔄 Перезайти", Color3.fromRGB(150,100,50), function()
-    TPS:Teleport(game.PlaceId, player)
-end)
-
--- === НЕВИДИМОСТЬ v2 (полная, современная) ===
+-- === НЕВИДИМОСТЬ ===
 local invisConn, invisParts
 btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200), function(b)
     if invisConn then
@@ -414,7 +397,7 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
         if char then
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    pcall(function() part.Transparency = 0 end)
+                    pcall(function() part.Transparency = 0; part.CanCollide = true end)
                 elseif part:IsA("Decal") or part:IsA("Texture") then
                     pcall(function() part.Transparency = 0 end)
                 elseif part:IsA("BillboardGui") then
@@ -485,7 +468,7 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
         if not char then return end
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
-                pcall(function() part.Transparency = 1 end)
+                pcall(function() part.Transparency = 1; part.CanCollide = false end)
             elseif part:IsA("Decal") or part:IsA("Texture") then
                 pcall(function() part.Transparency = 1 end)
             elseif part:IsA("BillboardGui") then
@@ -518,29 +501,50 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
     end)
 end)
 
--- === СКОРОСТЬ АТАКИ МЕЧЕЙ ===
+-- === СКОРОСТЬ АТАКИ (обновлено, агрессивнее) ===
 local atkSpeedConn
-local atkSpeed = 2
-inp(P_COMBAT, "⚡ Множитель атаки", 2, function(n) atkSpeed = math.clamp(n, 0.5, 5) end)
+local atkSpeed = 3
+inp(P_COMBAT, "⚡ Множитель атаки", 3, function(n) atkSpeed = math.clamp(n, 0.1, 10) end)
 btn(P_COMBAT, "⚡ Скорость атаки: ВЫКЛ", Color3.fromRGB(160,60,160), function(b)
     if atkSpeedConn then atkSpeedConn:Disconnect(); atkSpeedConn = nil
         b.Text="⚡ Скорость атаки: ВЫКЛ"; b.BackgroundColor3=Color3.fromRGB(160,60,160); return end
     b.Text="⚡ Скорость атаки: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(200,100,200)
     atkSpeedConn = RS.Heartbeat:Connect(function()
         local char = getChar()
-        for _, tool in pairs(char:GetChildren()) do
-            if tool:IsA("Tool") then
-                local hum = getHum()
-                if hum then
-                    for _, anim in pairs(hum:GetPlayingAnimationTracks()) do
-                        pcall(function() anim:AdjustSpeed(atkSpeed) end)
+        -- 1) Ускоряем анимации персонажа (удары мечом)
+        local hum = getHum()
+        if hum then
+            for _, anim in pairs(hum:GetPlayingAnimationTracks()) do
+                pcall(function() anim:AdjustSpeed(atkSpeed) end)
+            end
+        end
+        -- 2) Перебираем ВСЁ, что есть в персонаже и в бэкпаке
+        local containers = {char}
+        local bp = player:FindFirstChildOfClass("Backpack")
+        if bp then table.insert(containers, bp) end
+        for _, container in pairs(containers) do
+            for _, tool in pairs(container:GetChildren()) do
+                if tool:IsA("Tool") then
+                    -- ускоряем анимации инструмента
+                    for _, v in pairs(tool:GetDescendants()) do
+                        if v:IsA("Animation") then
+                            -- не можем менять Animation напрямую, но можем отслеживать
+                        end
+                        if v:IsA("NumberValue") or v:IsA("IntValue") then
+                            local n = string.lower(v.Name)
+                            if n:find("speed") or n:find("rate") or n:find("attack") or n:find("swing") 
+                               or n:find("cooldown") or n:find("cd") or n:find("delay") 
+                               or n:find("damage") or n:find("dmg") or n:find("hit") then
+                                pcall(function() 
+                                    v.Value = v.Value * atkSpeed
+                                end)
+                            end
+                        end
                     end
-                end
-                for _, v in pairs(tool:GetDescendants()) do
-                    if v:IsA("NumberValue") or v:IsA("IntValue") then
-                        local n = string.lower(v.Name)
-                        if n:find("speed") or n:find("rate") or n:find("attack") or n:find("swing") or n:find("cooldown") or n:find("cd") then
-                            pcall(function() v.Value = v.Value * atkSpeed end)
+                    -- 3) Если внутри инструмента есть скрипт, пытаемся ускорить его через хуки (если поддерживается)
+                    for _, s in pairs(tool:GetDescendants()) do
+                        if s:IsA("LocalScript") or s:IsA("Script") then
+                            -- ничего не делаем, просто проверяем
                         end
                     end
                 end
@@ -608,25 +612,14 @@ btn(P_COMBAT, "📦 Хитбокс: ВЫКЛ", Color3.fromRGB(180,50,50), functi
     end)
 end)
 
--- === ФАРМ ===
+-- === ФАРМ (обновлено под фото) ===
 local farmConn, collected = 0, 0
-local farmRadius, farmSpeed = 80, 80
-local coinFilter = "coin,cash,money,gem,drop,orb,energy,crystal"
-inp(P_FARM, "📏 Радиус", 80, function(n) farmRadius = n end)
-inp(P_FARM, "🏃 Скорость", 80, function(n) farmSpeed = n end)
-local filterRow = Instance.new("Frame")
-filterRow.Size = UDim2.new(1, -8, 0, 32); filterRow.BackgroundColor3 = Color3.fromRGB(34, 34, 48)
-filterRow.Parent = P_FARM; Instance.new("UICorner", filterRow).CornerRadius = UDim.new(0, 9)
-local fLbl = Instance.new("TextLabel")
-fLbl.Size = UDim2.new(0.3,0,1,0); fLbl.Position = UDim2.new(0,8,0,0)
-fLbl.BackgroundTransparency = 1; fLbl.Text = "🔍 Фильтр"
-fLbl.TextColor3 = Color3.fromRGB(190, 190, 220); fLbl.TextScaled = true; fLbl.Parent = filterRow
-local fBox = Instance.new("TextBox")
-fBox.Size = UDim2.new(0.65,0,0.7,0); fBox.Position = UDim2.new(0.32,0,0.15,0)
-fBox.BackgroundColor3 = Color3.fromRGB(16, 16, 24); fBox.Text = coinFilter
-fBox.TextColor3 = Color3.new(1,1,1); fBox.TextScaled = true; fBox.Parent = filterRow
-Instance.new("UICorner", fBox).CornerRadius = UDim.new(0, 6)
-fBox.FocusLost:Connect(function() coinFilter = fBox.Text end)
+local farmRadius, farmSpeed = 100, 100
+local minCash = 50
+inp(P_FARM, "📏 Радиус", 100, function(n) farmRadius = n end)
+inp(P_FARM, "🏃 Скорость", 100, function(n) farmSpeed = n end)
+inp(P_FARM, "💰 Собирать от", 50, function(n) minCash = n end)
+
 btn(P_FARM, "💰 Авто-сбор: ВЫКЛ", Color3.fromRGB(80,180,120), function(b)
     if farmConn then farmConn:Disconnect(); farmConn=nil
         b.Text="💰 Авто-сбор: ВЫКЛ"; b.BackgroundColor3=Color3.fromRGB(80,180,120); return end
@@ -636,18 +629,32 @@ btn(P_FARM, "💰 Авто-сбор: ВЫКЛ", Color3.fromRGB(80,180,120), func
         local hrp = char:FindFirstChild("HumanoidRootPart")
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hrp or not hum then return end
-        local filters = {}
-        for word in string.gmatch(coinFilter, "[^,]+") do table.insert(filters, string.lower(word)) end
         local best, bestDist = nil, farmRadius
         for _,obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and obj.Parent then
                 local n = string.lower(obj.Name)
-                for _,f in pairs(filters) do
-                    if n:find(f) then
-                        local dist = (obj.Position - hrp.Position).Magnitude
-                        if dist < bestDist then best = obj; bestDist = dist end
-                        break
+                local isCash = n:find("cash") or n:find("money") or n:find("coin") or n:find("dollar") or n:find("drop") or n:find("bill") or n:find("banknote")
+                if not isCash then
+                    for _, child in pairs(obj:GetChildren()) do
+                        if child:IsA("BillboardGui") or child:IsA("SurfaceGui") then
+                            for _, text in pairs(child:GetDescendants()) do
+                                if text:IsA("TextLabel") then
+                                    local t = text.Text
+                                    if t:find("%$%d+") then
+                                        local num = tonumber(t:match("%$(%d+)"))
+                                        if num and num >= minCash then
+                                            isCash = true
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
+                end
+                if isCash then
+                    local dist = (obj.Position - hrp.Position).Magnitude
+                    if dist < bestDist then best = obj; bestDist = dist end
                 end
             end
         end
@@ -663,9 +670,10 @@ btn(P_FARM, "💰 Авто-сбор: ВЫКЛ", Color3.fromRGB(80,180,120), func
     end)
 end)
 
+-- Авто-покупка
 local buyConn, bought = 0, 0
 local buyInterval = 1.5
-inp(P_FARM, "⏱ Интервал", 1.5, function(n) buyInterval = n end)
+inp(P_FARM, "⏱ Интервал покупки", 1.5, function(n) buyInterval = n end)
 local remoteRow = Instance.new("Frame")
 remoteRow.Size = UDim2.new(1, -8, 0, 32); remoteRow.BackgroundColor3 = Color3.fromRGB(34, 34, 48)
 remoteRow.Parent = P_FARM; Instance.new("UICorner", remoteRow).CornerRadius = UDim.new(0, 9)
