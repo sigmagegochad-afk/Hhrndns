@@ -1,4 +1,4 @@
--- Ultra Power Tycoon | by qn1xT v31
+-- Ultra Power Tycoon | by qn1xT v32
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
@@ -326,8 +326,22 @@ end)
 
 -- === MORE SLOTS (кнопка запуска) ===
 btn(P_MAIN, "🎒 Расширить слоты", Color3.fromRGB(80,120,200), function(b)
+    if not loadstring then
+        b.Text = "🎒 loadstring отключён"
+        b.BackgroundColor3 = Color3.fromRGB(180,50,50)
+        warn("[UPT] loadstring недоступен в этом executor'е")
+        task.wait(2)
+        b.Text = "🎒 Расширить слоты"
+        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
+        return
+    end
+    local url = "https://raw.githubusercontent.com/ltseverydayyou/uuuuuuu/refs/heads/main/mobileBACKPACK.lua"
     local ok, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/ltseverydayyou/uuuuuuu/refs/heads/main/mobileBACKPACK.lua"))()
+        local src = game:HttpGet(url)
+        if not src or #src < 10 then error("пустой ответ от GitHub") end
+        local fn = loadstring(src)
+        if not fn then error("loadstring вернул nil — синтаксис битый") end
+        fn()
     end)
     if ok then
         b.Text = "🎒 Слоты расширены ✓"
@@ -338,23 +352,22 @@ btn(P_MAIN, "🎒 Расширить слоты", Color3.fromRGB(80,120,200), fu
     else
         b.Text = "🎒 Ошибка, см. консоль"
         b.BackgroundColor3 = Color3.fromRGB(180,50,50)
-        warn("[UPT] More slots loadstring failed: " .. tostring(err))
-        task.wait(2)
+        warn("[UPT] More slots failed: " .. tostring(err))
+        task.wait(3)
         b.Text = "🎒 Расширить слоты"
         b.BackgroundColor3 = Color3.fromRGB(80,120,200)
     end
 end)
 
--- === ПОЛЁТ (как в Infinity Yield) ===
-local flyConn, flyBV, flyBG, flyGui
+-- === ПОЛЁТ (работает и на ПК, и на мобиле) ===
+local flyConn, flyBV, flyBG
 local flySpeed = 80
 inp(P_MAIN, "✈ Скорость полёта", 80, function(n) flySpeed = n end)
 btn(P_MAIN, "✈ Полёт: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
     if flyConn then
         flyConn:Disconnect(); flyConn=nil
-        if flyBV then flyBV:Destroy() end
-        if flyBG then flyBG:Destroy() end
-        if flyGui then flyGui:Destroy(); flyGui = nil end
+        if flyBV then flyBV:Destroy(); flyBV=nil end
+        if flyBG then flyBG:Destroy(); flyBG=nil end
         b.Text="✈ Полёт: ВЫКЛ"; b.BackgroundColor3=Color3.fromRGB(180,50,50); return
     end
     b.Text="✈ Полёт: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(40,160,80)
@@ -370,25 +383,42 @@ btn(P_MAIN, "✈ Полёт: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
 
     flyConn = RS.RenderStepped:Connect(function()
         if not flyBV or not flyBG then return end
+        local char = player.Character
+        if not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum then return end
         local cam = workspace.CurrentCamera
         local dir = Vector3.zero
-        if UIS:IsKeyDown(Enum.KeyCode.W) or UIS:IsKeyDown(Enum.KeyCode.Up) then dir += cam.CFrame.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.S) or UIS:IsKeyDown(Enum.KeyCode.Down) then dir -= cam.CFrame.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.A) or UIS:IsKeyDown(Enum.KeyCode.Left) then dir -= cam.CFrame.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.D) or UIS:IsKeyDown(Enum.KeyCode.Right) then dir += cam.CFrame.RightVector end
+
+        -- ГЛАВНОЕ: читаем MoveDirection — работает и на мобильном джойстике, и на WASD
+        local md = hum.MoveDirection
+        if md.Magnitude > 0.01 then
+            dir = md.Unit
+        end
+
+        -- Дополнительно: WASD/стрелки на ПК (fallback)
+        if dir.Magnitude < 0.01 then
+            if UIS:IsKeyDown(Enum.KeyCode.W) or UIS:IsKeyDown(Enum.KeyCode.Up) then dir += cam.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) or UIS:IsKeyDown(Enum.KeyCode.Down) then dir -= cam.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) or UIS:IsKeyDown(Enum.KeyCode.Left) then dir -= cam.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) or UIS:IsKeyDown(Enum.KeyCode.Right) then dir += cam.CFrame.RightVector end
+        end
+
+        -- Вверх/вниз — Space / LeftShift
         if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
         if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
 
-        if dir.Magnitude > 0 then
+        if dir.Magnitude > 0.01 then
             flyBV.Velocity = dir.Unit * flySpeed
-            flyBG.CFrame = CFrame.new(hrp.Position, hrp.Position + dir)
+            local look = CFrame.new(hrp.Position, hrp.Position + dir.Unit)
+            flyBG.CFrame = flyBG.CFrame:Lerp(look, 0.2)
         else
             flyBV.Velocity = Vector3.zero
         end
     end)
 end)
 
--- === НЕВИДИМОСТЬ ===
+-- === НЕВИДИМОСТЬ (максимально возможная клиентски) ===
 local invisConn, invisParts
 btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200), function(b)
     if invisConn then
@@ -397,10 +427,10 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
         if char then
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    pcall(function() part.Transparency = 0; part.CanCollide = true end)
+                    pcall(function() part.Transparency = 0; part.CanCollide = true; part.CanTouch = true; part.CanQuery = true end)
                 elseif part:IsA("Decal") or part:IsA("Texture") then
                     pcall(function() part.Transparency = 0 end)
-                elseif part:IsA("BillboardGui") then
+                elseif part:IsA("BillboardGui") or part:IsA("SurfaceGui") then
                     pcall(function() part.Enabled = true end)
                 end
             end
@@ -420,29 +450,29 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
     end
     b.Text="👁 Невидимость: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(160,100,255)
 
-    local function hideBody()
-        local char = getChar()
+    local function hideAll()
+        local char = player.Character
+        if not char then return end
         invisParts = {}
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
-                part.Transparency = 1
-                part.CanCollide = false
+                pcall(function()
+                    part.Transparency = 1
+                    part.CanCollide = false
+                    part.CanTouch = false
+                    part.CanQuery = false
+                end)
                 table.insert(invisParts, part)
             elseif part:IsA("Decal") or part:IsA("Texture") then
                 pcall(function() part.Transparency = 1 end)
-            elseif part:IsA("BillboardGui") then
+            elseif part:IsA("BillboardGui") or part:IsA("SurfaceGui") then
                 pcall(function() part.Enabled = false end)
             elseif part:IsA("Highlight") then
                 pcall(function() part:Destroy() end)
-            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") then
+            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Smoke") or part:IsA("Fire") or part:IsA("Sparkles") then
                 pcall(function() part.Enabled = false end)
             end
         end
-    end
-    hideBody()
-
-    local function hideOverhead()
-        local char = getChar()
         local h = char:FindFirstChildOfClass("Humanoid")
         if h then
             pcall(function()
@@ -452,30 +482,33 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
                 h.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
             end)
         end
-        for _, obj in pairs(char:GetDescendants()) do
-            if obj:IsA("BillboardGui") then pcall(function() obj:Destroy() end) end
-            if obj:IsA("Highlight") then pcall(function() obj:Destroy() end) end
-        end
+        local ff = char:FindFirstChildOfClass("ForceField")
+        if ff then pcall(function() ff.Visible = false end) end
     end
-    hideOverhead()
 
+    hideAll()
     local ff = Instance.new("ForceField")
     ff.Visible = false
-    ff.Parent = getChar()
+    ff.Parent = player.Character
 
     invisConn = RS.Heartbeat:Connect(function()
         local char = player.Character
         if not char then return end
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
-                pcall(function() part.Transparency = 1; part.CanCollide = false end)
+                pcall(function()
+                    part.Transparency = 1
+                    part.CanCollide = false
+                    part.CanTouch = false
+                    part.CanQuery = false
+                end)
             elseif part:IsA("Decal") or part:IsA("Texture") then
                 pcall(function() part.Transparency = 1 end)
-            elseif part:IsA("BillboardGui") then
+            elseif part:IsA("BillboardGui") or part:IsA("SurfaceGui") then
                 pcall(function() part.Enabled = false end)
             elseif part:IsA("Highlight") then
                 pcall(function() part:Destroy() end)
-            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") then
+            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Smoke") or part:IsA("Fire") or part:IsA("Sparkles") then
                 pcall(function() part.Enabled = false end)
             end
         end
@@ -490,13 +523,13 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
         end
     end)
 
-    player.CharacterAdded:Connect(function()
+    player.CharacterAdded:Connect(function(newChar)
         task.wait(0.5)
         if b.Text == "👁 Невидимость: ВКЛ" then
-            hideBody(); hideOverhead()
+            hideAll()
             local ff2 = Instance.new("ForceField")
             ff2.Visible = false
-            ff2.Parent = player.Character
+            ff2.Parent = newChar
         end
     end)
 end)
@@ -511,25 +544,19 @@ btn(P_COMBAT, "⚡ Скорость атаки: ВЫКЛ", Color3.fromRGB(160,60
     b.Text="⚡ Скорость атаки: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(200,100,200)
     atkSpeedConn = RS.Heartbeat:Connect(function()
         local char = getChar()
-        -- 1) Ускоряем анимации персонажа (удары мечом)
         local hum = getHum()
         if hum then
             for _, anim in pairs(hum:GetPlayingAnimationTracks()) do
                 pcall(function() anim:AdjustSpeed(atkSpeed) end)
             end
         end
-        -- 2) Перебираем ВСЁ, что есть в персонаже и в бэкпаке
         local containers = {char}
         local bp = player:FindFirstChildOfClass("Backpack")
         if bp then table.insert(containers, bp) end
         for _, container in pairs(containers) do
             for _, tool in pairs(container:GetChildren()) do
                 if tool:IsA("Tool") then
-                    -- ускоряем анимации инструмента
                     for _, v in pairs(tool:GetDescendants()) do
-                        if v:IsA("Animation") then
-                            -- не можем менять Animation напрямую, но можем отслеживать
-                        end
                         if v:IsA("NumberValue") or v:IsA("IntValue") then
                             local n = string.lower(v.Name)
                             if n:find("speed") or n:find("rate") or n:find("attack") or n:find("swing") 
@@ -539,12 +566,6 @@ btn(P_COMBAT, "⚡ Скорость атаки: ВЫКЛ", Color3.fromRGB(160,60
                                     v.Value = v.Value * atkSpeed
                                 end)
                             end
-                        end
-                    end
-                    -- 3) Если внутри инструмента есть скрипт, пытаемся ускорить его через хуки (если поддерживается)
-                    for _, s in pairs(tool:GetDescendants()) do
-                        if s:IsA("LocalScript") or s:IsA("Script") then
-                            -- ничего не делаем, просто проверяем
                         end
                     end
                 end
