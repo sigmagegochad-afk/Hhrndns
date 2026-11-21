@@ -144,7 +144,6 @@ MB.MouseButton1Click:Connect(function()
     MB.Text = collapsed and "+" or "−"
 end)
 
--- Вкладки (без статус-бара)
 local tabsFrame = Instance.new("Frame")
 tabsFrame.Size = UDim2.new(1, -20, 0, 36); tabsFrame.Position = UDim2.new(0, 10, 0, 8)
 tabsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30); tabsFrame.BackgroundTransparency = 0.2
@@ -324,50 +323,15 @@ btn(P_MAIN, "🔓 Лазерные двери: ВЫКЛ", Color3.fromRGB(180,50,
     lConn = workspace.DescendantAdded:Connect(kill)
 end)
 
--- === MORE SLOTS (кнопка запуска) ===
-btn(P_MAIN, "🎒 Расширить слоты", Color3.fromRGB(80,120,200), function(b)
-    if not loadstring then
-        b.Text = "🎒 loadstring отключён"
-        b.BackgroundColor3 = Color3.fromRGB(180,50,50)
-        warn("[UPT] loadstring недоступен в этом executor'е")
-        task.wait(2)
-        b.Text = "🎒 Расширить слоты"
-        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
-        return
-    end
-    local url = "https://raw.githubusercontent.com/ltseverydayyou/uuuuuuu/refs/heads/main/mobileBACKPACK.lua"
-    local ok, err = pcall(function()
-        local src = game:HttpGet(url)
-        if not src or #src < 10 then error("пустой ответ от GitHub") end
-        local fn = loadstring(src)
-        if not fn then error("loadstring вернул nil — синтаксис битый") end
-        fn()
-    end)
-    if ok then
-        b.Text = "🎒 Слоты расширены ✓"
-        b.BackgroundColor3 = Color3.fromRGB(40,180,80)
-        task.wait(2)
-        b.Text = "🎒 Расширить слоты"
-        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
-    else
-        b.Text = "🎒 Ошибка, см. консоль"
-        b.BackgroundColor3 = Color3.fromRGB(180,50,50)
-        warn("[UPT] More slots failed: " .. tostring(err))
-        task.wait(3)
-        b.Text = "🎒 Расширить слоты"
-        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
-    end
-end)
-
--- === ПОЛЁТ (работает и на ПК, и на мобиле) ===
+-- === ПОЛЁТ (как в Infinity Yield) ===
 local flyConn, flyBV, flyBG
 local flySpeed = 80
 inp(P_MAIN, "✈ Скорость полёта", 80, function(n) flySpeed = n end)
 btn(P_MAIN, "✈ Полёт: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
     if flyConn then
         flyConn:Disconnect(); flyConn=nil
-        if flyBV then flyBV:Destroy(); flyBV=nil end
-        if flyBG then flyBG:Destroy(); flyBG=nil end
+        if flyBV then flyBV:Destroy() end
+        if flyBG then flyBG:Destroy() end
         b.Text="✈ Полёт: ВЫКЛ"; b.BackgroundColor3=Color3.fromRGB(180,50,50); return
     end
     b.Text="✈ Полёт: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(40,160,80)
@@ -383,42 +347,71 @@ btn(P_MAIN, "✈ Полёт: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
 
     flyConn = RS.RenderStepped:Connect(function()
         if not flyBV or not flyBG then return end
-        local char = player.Character
-        if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hum then return end
         local cam = workspace.CurrentCamera
         local dir = Vector3.zero
-
-        -- ГЛАВНОЕ: читаем MoveDirection — работает и на мобильном джойстике, и на WASD
-        local md = hum.MoveDirection
-        if md.Magnitude > 0.01 then
-            dir = md.Unit
-        end
-
-        -- Дополнительно: WASD/стрелки на ПК (fallback)
-        if dir.Magnitude < 0.01 then
-            if UIS:IsKeyDown(Enum.KeyCode.W) or UIS:IsKeyDown(Enum.KeyCode.Up) then dir += cam.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) or UIS:IsKeyDown(Enum.KeyCode.Down) then dir -= cam.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) or UIS:IsKeyDown(Enum.KeyCode.Left) then dir -= cam.CFrame.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) or UIS:IsKeyDown(Enum.KeyCode.Right) then dir += cam.CFrame.RightVector end
-        end
-
-        -- Вверх/вниз — Space / LeftShift
+        if UIS:IsKeyDown(Enum.KeyCode.W) or UIS:IsKeyDown(Enum.KeyCode.Up) then dir += cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) or UIS:IsKeyDown(Enum.KeyCode.Down) then dir -= cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) or UIS:IsKeyDown(Enum.KeyCode.Left) then dir -= cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) or UIS:IsKeyDown(Enum.KeyCode.Right) then dir += cam.CFrame.RightVector end
         if UIS:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
         if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.new(0,1,0) end
 
-        if dir.Magnitude > 0.01 then
+        if dir.Magnitude > 0 then
             flyBV.Velocity = dir.Unit * flySpeed
-            local look = CFrame.new(hrp.Position, hrp.Position + dir.Unit)
-            flyBG.CFrame = flyBG.CFrame:Lerp(look, 0.2)
+            flyBG.CFrame = CFrame.new(hrp.Position, hrp.Position + dir)
         else
             flyBV.Velocity = Vector3.zero
         end
     end)
 end)
 
--- === НЕВИДИМОСТЬ (максимально возможная клиентски) ===
+-- === РАСШИРЕНИЕ СЛОТОВ (ScriptBlox) ===
+btn(P_MAIN, "🎒 Расширить слоты", Color3.fromRGB(80,120,200), function(b)
+    local ok, err = pcall(function()
+        loadstring(game:HttpGet("https://scriptblox.com/raw/Universal-Script-Better-Inventory-and-More-Slot-REFIXED-68251"))()
+    end)
+    if ok then
+        b.Text = "🎒 Слоты расширены ✓"
+        b.BackgroundColor3 = Color3.fromRGB(40,180,80)
+        task.wait(2)
+        b.Text = "🎒 Расширить слоты"
+        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
+    else
+        b.Text = "🎒 Ошибка (см. консоль)"
+        b.BackgroundColor3 = Color3.fromRGB(180,50,50)
+        warn("[UPT] More slots failed: " .. tostring(err))
+        task.wait(2)
+        b.Text = "🎒 Расширить слоты"
+        b.BackgroundColor3 = Color3.fromRGB(80,120,200)
+    end
+end)
+
+inp(P_MAIN, "🏃 Скорость", 16, function(n) getHum().WalkSpeed = n end)
+inp(P_MAIN, "🦘 Прыжок", 50, function(n) local h=getHum(); h.UseJumpPower=true; h.JumpPower=n end)
+
+local fbOn = false
+btn(P_MAIN, "💡 Яркость: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
+    fbOn = not fbOn
+    b.Text="💡 Яркость: "..(fbOn and "ВКЛ" or "ВЫКЛ")
+    b.BackgroundColor3 = fbOn and Color3.fromRGB(40,160,80) or Color3.fromRGB(180,50,50)
+    Lighting.Brightness = fbOn and 3 or 1; Lighting.ClockTime = fbOn and 12 or 14; Lighting.GlobalShadows = not fbOn
+end)
+
+local npConn
+btn(P_MAIN, "👻 Noclip: ВЫКЛ", Color3.fromRGB(180,50,50), function(b)
+    if npConn then npConn:Disconnect(); npConn=nil
+        b.Text="👻 Noclip: ВЫКЛ"; b.BackgroundColor3=Color3.fromRGB(180,50,50); return end
+    b.Text="👻 Noclip: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(40,160,80)
+    npConn = RS.Stepped:Connect(function()
+        for _,p in pairs(getChar():GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end
+    end)
+end)
+
+btn(P_MAIN, "🔄 Перезайти", Color3.fromRGB(150,100,50), function()
+    TPS:Teleport(game.PlaceId, player)
+end)
+
+-- === НЕВИДИМОСТЬ (полная) ===
 local invisConn, invisParts
 btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200), function(b)
     if invisConn then
@@ -427,10 +420,10 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
         if char then
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    pcall(function() part.Transparency = 0; part.CanCollide = true; part.CanTouch = true; part.CanQuery = true end)
+                    pcall(function() part.Transparency = 0; part.CanCollide = true end)
                 elseif part:IsA("Decal") or part:IsA("Texture") then
                     pcall(function() part.Transparency = 0 end)
-                elseif part:IsA("BillboardGui") or part:IsA("SurfaceGui") then
+                elseif part:IsA("BillboardGui") then
                     pcall(function() part.Enabled = true end)
                 end
             end
@@ -450,29 +443,29 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
     end
     b.Text="👁 Невидимость: ВКЛ"; b.BackgroundColor3=Color3.fromRGB(160,100,255)
 
-    local function hideAll()
-        local char = player.Character
-        if not char then return end
+    local function hideBody()
+        local char = getChar()
         invisParts = {}
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
-                pcall(function()
-                    part.Transparency = 1
-                    part.CanCollide = false
-                    part.CanTouch = false
-                    part.CanQuery = false
-                end)
+                part.Transparency = 1
+                part.CanCollide = false
                 table.insert(invisParts, part)
             elseif part:IsA("Decal") or part:IsA("Texture") then
                 pcall(function() part.Transparency = 1 end)
-            elseif part:IsA("BillboardGui") or part:IsA("SurfaceGui") then
+            elseif part:IsA("BillboardGui") then
                 pcall(function() part.Enabled = false end)
             elseif part:IsA("Highlight") then
                 pcall(function() part:Destroy() end)
-            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Smoke") or part:IsA("Fire") or part:IsA("Sparkles") then
+            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") then
                 pcall(function() part.Enabled = false end)
             end
         end
+    end
+    hideBody()
+
+    local function hideOverhead()
+        local char = getChar()
         local h = char:FindFirstChildOfClass("Humanoid")
         if h then
             pcall(function()
@@ -482,33 +475,30 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
                 h.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
             end)
         end
-        local ff = char:FindFirstChildOfClass("ForceField")
-        if ff then pcall(function() ff.Visible = false end) end
+        for _, obj in pairs(char:GetDescendants()) do
+            if obj:IsA("BillboardGui") then pcall(function() obj:Destroy() end) end
+            if obj:IsA("Highlight") then pcall(function() obj:Destroy() end) end
+        end
     end
+    hideOverhead()
 
-    hideAll()
     local ff = Instance.new("ForceField")
     ff.Visible = false
-    ff.Parent = player.Character
+    ff.Parent = getChar()
 
     invisConn = RS.Heartbeat:Connect(function()
         local char = player.Character
         if not char then return end
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
-                pcall(function()
-                    part.Transparency = 1
-                    part.CanCollide = false
-                    part.CanTouch = false
-                    part.CanQuery = false
-                end)
+                pcall(function() part.Transparency = 1; part.CanCollide = false end)
             elseif part:IsA("Decal") or part:IsA("Texture") then
                 pcall(function() part.Transparency = 1 end)
-            elseif part:IsA("BillboardGui") or part:IsA("SurfaceGui") then
+            elseif part:IsA("BillboardGui") then
                 pcall(function() part.Enabled = false end)
             elseif part:IsA("Highlight") then
                 pcall(function() part:Destroy() end)
-            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") or part:IsA("Smoke") or part:IsA("Fire") or part:IsA("Sparkles") then
+            elseif part:IsA("ParticleEmitter") or part:IsA("Trail") or part:IsA("Beam") then
                 pcall(function() part.Enabled = false end)
             end
         end
@@ -523,18 +513,18 @@ btn(P_COMBAT, "👁 Невидимость: ВЫКЛ", Color3.fromRGB(120,60,200
         end
     end)
 
-    player.CharacterAdded:Connect(function(newChar)
+    player.CharacterAdded:Connect(function()
         task.wait(0.5)
         if b.Text == "👁 Невидимость: ВКЛ" then
-            hideAll()
+            hideBody(); hideOverhead()
             local ff2 = Instance.new("ForceField")
             ff2.Visible = false
-            ff2.Parent = newChar
+            ff2.Parent = player.Character
         end
     end)
 end)
 
--- === СКОРОСТЬ АТАКИ (обновлено, агрессивнее) ===
+-- === СКОРОСТЬ АТАКИ ===
 local atkSpeedConn
 local atkSpeed = 3
 inp(P_COMBAT, "⚡ Множитель атаки", 3, function(n) atkSpeed = math.clamp(n, 0.1, 10) end)
@@ -562,9 +552,7 @@ btn(P_COMBAT, "⚡ Скорость атаки: ВЫКЛ", Color3.fromRGB(160,60
                             if n:find("speed") or n:find("rate") or n:find("attack") or n:find("swing") 
                                or n:find("cooldown") or n:find("cd") or n:find("delay") 
                                or n:find("damage") or n:find("dmg") or n:find("hit") then
-                                pcall(function() 
-                                    v.Value = v.Value * atkSpeed
-                                end)
+                                pcall(function() v.Value = v.Value * atkSpeed end)
                             end
                         end
                     end
@@ -633,7 +621,7 @@ btn(P_COMBAT, "📦 Хитбокс: ВЫКЛ", Color3.fromRGB(180,50,50), functi
     end)
 end)
 
--- === ФАРМ (обновлено под фото) ===
+-- === ФАРМ ===
 local farmConn, collected = 0, 0
 local farmRadius, farmSpeed = 100, 100
 local minCash = 50
@@ -691,7 +679,6 @@ btn(P_FARM, "💰 Авто-сбор: ВЫКЛ", Color3.fromRGB(80,180,120), func
     end)
 end)
 
--- Авто-покупка
 local buyConn, bought = 0, 0
 local buyInterval = 1.5
 inp(P_FARM, "⏱ Интервал покупки", 1.5, function(n) buyInterval = n end)
